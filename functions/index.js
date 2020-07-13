@@ -18,26 +18,51 @@ exports.sendNotification = functions.database.ref('/Notifications/{user_id}/{not
 
     console.log('The User id: ', user_id);
 
-    // if (context.data.val()) {
+    // if (!context.data.val()) {
     //     return console.log('A new notification has been deleted from the database: ', notification);
     // }
 
-    const deviceToken = admin.database().ref(`/Users/${user_id}/device_token`).once('value');
+    const fromUser = admin.database().ref(`/Notifications/${user_id}/${notification}`).once('value');
 
-    return deviceToken.then((context) => {
-        const token_id = context.val();
+    return fromUser.then(fromUserResult => {
 
-        const payLoad = {
-            notification: {
-                title: "Friend Request",
-                body: "You've recieved a new Friend request",
-                icon: "default"
-            }
-        };
+        const from_user_id = fromUserResult.val().from;
 
-        return admin.messaging().sendToDevice(token_id, payLoad).then(response => {
-            return console.log('This was the notification feature');
+        console.log('You have new notification from ', from_user_id);
+
+        const userQuery = admin.database().ref(`/Users/${from_user_id}/name`).once('value');
+
+        return userQuery.then(userResult => {
+            const userName = userResult.val();
+
+
+            const deviceToken = admin.database().ref(`/Users/${user_id}/device_token`).once('value');
+
+            return deviceToken.then((context) => {
+
+                const token_id = context.val();
+
+                const payLoad = {
+                    notification: {
+                        title: "New Friend Request",
+                        body: `${userName} has sent you a request`,
+                        icon: "default",
+                        click_action: "com.example.chitchat_TARGET_NOTIFICATION"
+                    },
+                    data: {
+                        from_user_id: from_user_id
+                    }
+                };
+
+                return admin.messaging().sendToDevice(token_id, payLoad).then(response => {
+                    return console.log('This was the notification feature');
+                });
+
+            });
+
+
         });
+
 
     });
 
